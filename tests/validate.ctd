@@ -1,0 +1,6 @@
+REGEX("p ocr") SPACE INT(1, 10^9, n0) SPACE INT(1, 10^9, n1) SPACE INT(1, 10^9, m) NEWLINE
+REPI(i, m, NEWLINE)
+    INT(1, n0, x[i]) SPACE INT(n0+1, n0+n1, y[i])
+END
+IF (!ISEOF) NEWLINE END
+ASSERT(UNIQUE(x, y))

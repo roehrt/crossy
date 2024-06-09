@@ -1,0 +1,3 @@
+SortIncludes: CaseInsensitive
+IndentWidth: 4
+ColumnLimit: 120
