@@ -9,8 +9,8 @@ For build instructions, see [BUILD.md](BUILD.md).
 
 **Brief solver description:**
 
-After applying a basic set of reduction rules, our solver reduces the problem to multiple Weighted Directed Feedback Arc
-Set (WDFAS) instances by constructing the penalty graph.
+After applying a basic set of reduction rules, our solver reduces the problem to Weighted Directed Feedback Arc
+Set (WDFAS) by constructing the penalty graph.
 We employ the cycle propagation technique for solving WDFAS, proposed by the [winning team][PACE2022Winner] of the
 [PACE 2022][PACE2022] challenge about Directed Feedback Vertex Set (DFVS).
 To incorporate cycle propagation, we modify UWrMaxSat to connect a User Propagator to its internal SAT solver, CaDiCal,
@@ -23,9 +23,9 @@ small.
 
 All benchmarks were run on an Intel Core i7-11370H CPU.
 
-- The exact solver is able to solve 91 out of 100 instances from the PACE 2024 public benchmark set within the time limit
+- The exact solver is able to solve 91 out of 100 instances from the PACE 2024 public exact benchmark set within the time limit
 of 1800 seconds per instance.
-- The parameterized solver is able to solve all 125 out of 125 instances from the PACE 2024 public benchmark set within
+- The parameterized solver is able to solve all 125 instances from the PACE 2024 public parameterized benchmark set within
 the time limit of 1800 seconds per instance. The average runtime is < 1 second.
 
 [IPASIRUP]: https://doi.org/10.4230/LIPIcs.SAT.2023.8
