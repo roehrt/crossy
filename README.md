@@ -1,18 +1,18 @@
 **Student submission** for the [PACE 2024][PACE2024] challenge.
 
-`crossy` is an exact (and parameterized) solver for [PACE 2024][PACE2024] about one-sided crossing minimization (OCM)
-based on a modified version of [UWrMaxSat](https://github.com/marekpiotrow/UWrMaxSat) with
+`crossy` is an exact (and parameterized) solver for One-Sided Crossing Minimization (OCM)
+based on [UWrMaxSat](https://github.com/marekpiotrow/UWrMaxSat) with
 [CaDiCaL](https://github.com/arminbiere/cadical) and [SCIP Optimization Suite](https://scip.zib.de/).
 Refer to the [challenge description][PACE2024] for more details about PACE and an overview of OCM.
 
-For building instructions, see [BUILD.md](BUILD.md).
+For build instructions, see [BUILD.md](BUILD.md).
 
 **Brief solver description:**
 
 After applying a basic set of reduction rules, our solver reduces the problem to multiple Weighted Directed Feedback Arc
 Set (WDFAS) instances by constructing the penalty graph.
 We employ the cycle propagation technique for solving WDFAS, proposed by the [winning team][PACE2022Winner] of the
-[PACE 2022][PACE2022] challenge about Directed Feedback Vertex Set (DFVS) problem.
+[PACE 2022][PACE2022] challenge about Directed Feedback Vertex Set (DFVS).
 To incorporate cycle propagation, we modify UWrMaxSat to connect a User Propagator to its internal SAT solver, CaDiCal,
 using the recently introduced [IPASIR-UP][IPASIRUP] interface.
 
