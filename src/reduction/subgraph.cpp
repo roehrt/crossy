@@ -1,5 +1,6 @@
 #include "../common/instance.hpp"
 #include "reduction.hpp"
+#include <algorithm>
 #include <ranges>
 #include <vector>
 
