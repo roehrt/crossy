@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.12082773.svg)](https://zenodo.org/record/12082773)
+
 **Student submission** for the [PACE 2024][PACE2024] challenge.
 
 `crossy` is an exact (and parameterized) solver for One-Sided Crossing Minimization (OCM)
@@ -6,6 +8,7 @@ based on [UWrMaxSat](https://github.com/marekpiotrow/UWrMaxSat) with
 Refer to the [challenge description][PACE2024] for more details about PACE and an overview of OCM.
 
 For build instructions, see [BUILD.md](BUILD.md).
+For a detailed description of the solver, see [crossy-description.pdf](crossy-description.pdf).
 
 **Brief solver description:**
 
