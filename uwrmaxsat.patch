@@ -4,7 +4,7 @@ index 732f73b..2d93ec8 100644
 +++ b/CadicalWrap.h
 @@ -21,52 +21,304 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
  #define CadicalWrap_h
- 
+
  #include "cadical.hpp"
 -#include "signal.hpp"
 -#include "mtl/Vec.h"
@@ -260,21 +260,21 @@ index 732f73b..2d93ec8 100644
 +        return lit;
 +    }
 +};
- 
+
  extern int opt_cpu_lim;
- 
+
  namespace COMinisatPS {
- 
+
  class SimpSolver {
 -public:
 +  public:
      CaDiCaL::Solver *solver;
- 
+
      class AlarmTerm : public CaDiCaL::Handler, public CaDiCaL::Terminator {
 -    public:
 +      public:
          volatile static bool timesup;
- 
+
          // Handler interface.
 -        void catch_signal (int ) { }
 -        void catch_alarm () { timesup = true; }
@@ -283,16 +283,16 @@ index 732f73b..2d93ec8 100644
          // Terminator interface.
          bool terminate() { return timesup; }
      } alarm_term;
- 
+
 -private:
 +  private:
      int nvars, nclauses, old_verbosity;
- 
+
 -    int lit2val(Lit p) {
 -        return sign(p) ? -var(p)-1 : var(p)+1;
 -    }
 +    int lit2val(Lit p) { return sign(p) ? -var(p) - 1 : var(p) + 1; }
- 
+
      class IpasirTerm : public CaDiCaL::Terminator {
 -    public:
 -        void * state;
@@ -300,18 +300,18 @@ index 732f73b..2d93ec8 100644
 +      public:
 +        void *state;
 +        int (*function)(void *);
- 
+
          IpasirTerm() : state(nullptr), function(nullptr) {}
 -        bool terminate () { return function == nullptr ? false : function(state); }
 +        bool terminate() { return function == nullptr ? false : function(state); }
      } terminator;
- 
+
 -public:
 +  public:
      vec<Lit> conflict;
      int verbosity;
      uint64_t conflicts;
- 
+
 -    SimpSolver() : nvars(0), nclauses(0), conflicts(0) {
 +    // crossy's ExternalPropagator
 +    ExternalPropagator *externalPropagator;
@@ -326,7 +326,7 @@ index 732f73b..2d93ec8 100644
 @@ -84,50 +336,80 @@ public:
  #endif
      }
- 
+
 -    void setTermCallback(void * state, int (*terminate)(void *)) {
 -        terminator.state = state; terminator.function = terminate;
 -        if (terminator.function != nullptr) solver->connect_terminator(&terminator);
@@ -339,7 +339,7 @@ index 732f73b..2d93ec8 100644
 +        else
 +            solver->disconnect_terminator();
      }
- 
+
      Var newVar(bool polarity = true, bool dvar = true) {
 -        (void)polarity; (void)dvar;
 +        (void)polarity;
@@ -360,7 +360,7 @@ index 732f73b..2d93ec8 100644
      void setPolarity(Var, bool) { /* unsupported */ }
 -    void setFrozen(Var , bool ) { /* not needed */ }
 +    void setFrozen(Var, bool) { /* not needed */ }
- 
+
 -    bool addClause(const vec<Lit>& cl) {
 -        for (int i = 0; i < cl.size(); i++) solver->add(lit2val(cl[i]));
 -        solver->add(0); nclauses++; return true;
@@ -397,28 +397,28 @@ index 732f73b..2d93ec8 100644
 +        nclauses++;
 +        return true;
      }
--    bool addEmptyClause() { 
+-    bool addEmptyClause() {
 -        solver->add(0); nclauses++; return true; }
--    bool addClause(Lit p) { 
+-    bool addClause(Lit p) {
 -        solver->add(lit2val(p)); solver->add(0); nclauses++; return true; }
--    bool addClause(Lit p, Lit q) { 
+-    bool addClause(Lit p, Lit q) {
 -        solver->add(lit2val(p)); solver->add(lit2val(q)); solver->add(0); nclauses++; return true; }
--    bool addClause(Lit p, Lit q, Lit r) { 
+-    bool addClause(Lit p, Lit q, Lit r) {
 -        solver->add(lit2val(p)); solver->add(lit2val(q)); solver->add(lit2val(r)); solver->add(0);
 -        nclauses++; return true; }
 -    bool addClause_(vec<Lit>& cl) { return addClause(cl); }
 +    bool addClause_(vec<Lit> &cl) { return addClause(cl); }
- 
+
 -    bool okay() { return ! solver->inconsistent(); }
 +    bool okay() { return !solver->inconsistent(); }
- 
+
      void interrupt() { solver->terminate(); }
 -    void clearInterrupt() { }
 +    void clearInterrupt() {}
- 
+
      void setConfBudget(int x) { solver->limit("conflicts", x); }
      void budgetOff() { solver->limit("conflicts", -1); }
- 
+
      lbool solveLimited() {
 -        if (verbosity < 0) verbosity = 0; else if (verbosity > 3) verbosity = 3;
 -        if (verbosity != old_verbosity) solver->set("verbose", old_verbosity = verbosity);
@@ -428,7 +428,7 @@ index 732f73b..2d93ec8 100644
 +            verbosity = 3;
 +        if (verbosity != old_verbosity)
 +            solver->set("verbose", old_verbosity = verbosity);
- 
+
          int ret = solver->solve();
          conflicts = solver->conflicts();
 @@ -139,18 +421,20 @@ public:
@@ -458,7 +458,7 @@ index 732f73b..2d93ec8 100644
          assert(ret != l_Undef);
 @@ -160,24 +444,30 @@ public:
      bool isEliminated(Var) { /* not needed */ return false; }
- 
+
      lbool value(Var v) const {
 -        int val = solver->fixed(v+1);
 +        int val = solver->fixed(v + 1);
@@ -466,7 +466,7 @@ index 732f73b..2d93ec8 100644
      }
      lbool value(Lit p) const {
          lbool val = value(var(p));
--        if (sign(p)) 
+-        if (sign(p))
 -            if (val == l_True) val = l_False; else if (val == l_False) val = l_True;
 +        if (sign(p))
 +            if (val == l_True)
@@ -475,7 +475,7 @@ index 732f73b..2d93ec8 100644
 +                val = l_True;
          return val;
      }
- 
+
      lbool modelValue(Var v) const {
 -        int val = solver->val(v+1);
 +        int val = solver->val(v + 1);
@@ -483,7 +483,7 @@ index 732f73b..2d93ec8 100644
      }
      lbool modelValue(Lit p) const {
          lbool val = modelValue(var(p));
--        if (sign(p)) 
+-        if (sign(p))
 -            if (val == l_True) val = l_False; else if (val == l_False) val = l_True;
 +        if (sign(p))
 +            if (val == l_True)
@@ -492,14 +492,14 @@ index 732f73b..2d93ec8 100644
 +                val = l_True;
          return val;
      }
- 
+
 @@ -185,6 +475,6 @@ public:
      void statistics() { solver->statistics(); }
  };
- 
+
 -}
 +} // namespace COMinisatPS
- 
+
  #endif
 diff --git a/Main.cc b/Main.cc
 index 9d5341b..ecfcfa3 100755
@@ -515,7 +515,7 @@ index 9d5341b..ecfcfa3 100755
  #include "PbParser.h"
  #include "FEnv.h"
  #include "Main_utils.h"
- 
+
 +
  #ifdef MAXPRE
  #include "preprocessorinterface.hpp"
@@ -529,7 +529,7 @@ index 9d5341b..ecfcfa3 100755
 +    pb_solver = new MsSolver(crossy_data(), true, opt_preprocess);
      signal(SIGINT , SIGINT_handler);
      signal(SIGTERM, SIGTERM_handler);
- 
+
 diff --git a/MsSolver.h b/MsSolver.h
 index 7385518..af2ee81 100755
 --- a/MsSolver.h
@@ -539,11 +539,11 @@ index 7385518..af2ee81 100755
  #include "VecMaps.h"
  #include "Sort.h"
 +#include "crossy.h"
- 
+
  enum OptFinder {OPT_NONE, OPT_SCIP, OPT_MSAT};
- 
+
 @@ -97,8 +98,8 @@ struct AtMost1 {
- 
+
  class MsSolver final : public PbSolver {
    public:
 -    MsSolver(bool print_info = true, bool use_preprocessing = false)
@@ -562,14 +562,14 @@ index b9e49a0..0a6de5e 100644
  #include "Map.h"
  #include "StackAlloc.h"
 +#include "crossy.h"
- 
+
  #ifdef BIG_WEIGHTS
  using weight_t = Int;
 @@ -129,8 +130,8 @@ public:
      bool    convertPbs(bool first_call);   // Called from 'solve()' to convert PB constraints to clauses.
- 
+
  public:
--    PbSolver(bool print_info = true, bool use_preprocessing = false) 
+-    PbSolver(bool print_info = true, bool use_preprocessing = false)
 -                : sat_solver(print_info)
 +    PbSolver(crossy_data data, bool print_info = true, bool use_preprocessing = false)
 +                : sat_solver(data, print_info)
@@ -589,14 +589,14 @@ index 5fc961b..ee14b0c 100644
  #elif defined(CRYPTOMS)
  #include "CryptoMSWrap.h"
 @@ -85,7 +86,7 @@ public:
-     ExtSimpSolver(bool print_info = true) { use_ccnr = false; allow_rephasing = false; 
+     ExtSimpSolver(bool print_info = true) { use_ccnr = false; allow_rephasing = false;
          if (print_info) printf("c Using MergeSat SAT solver by Norbert Manthey (2022)\n"); }
  #elif defined(CADICAL)
--    ExtSimpSolver(bool print_info = true) { 
+-    ExtSimpSolver(bool print_info = true) {
 +    ExtSimpSolver(crossy_data data, bool print_info = true) : SimpSolver(data) {
          if (print_info) printf("c Using %s SAT solver by Armin Biere (2022)\n", solver->signature()); }
  #elif defined(GLUCOSE4)
-     ExtSimpSolver(bool print_info = true) { 
+     ExtSimpSolver(bool print_info = true) {
 diff --git a/config.mk b/config.mk
 new file mode 100644
 index 0000000..d8ab8c5
@@ -608,7 +608,7 @@ index 0000000..d8ab8c5
 +USESCIP?=-D USE_SCIP -pthread
 +BIGWEIGHTS?=#-D BIG_WEIGHTS
 +MINISATP_RELSYM?=
-+MINISATP_REL?=-std=c++20 -O3 -march=haswell -D NDEBUG -Wno-strict-aliasing -D CADICAL $(MAXPRE) $(USESCIP) $(BIGWEIGHTS)
++MINISATP_REL?=-std=c++20 -O3 -D NDEBUG -Wno-strict-aliasing -D CADICAL $(MAXPRE) $(USESCIP) $(BIGWEIGHTS)
 +MINISATP_DEB?=-std=c++20 -O0 -D DEBUG  -Wno-strict-aliasing -D CADICAL $(MAXPRE) $(USESCIP) $(BIGWEIGHTS)
 +MINISATP_PRF?=-std=c++20 -O3 -D NDEBUG -Wno-strict-aliasing -D CADICAL $(MAXPRE) $(USESCIP) $(BIGWEIGHTS)
 +MINISATP_FPIC?=-fpic
@@ -646,7 +646,7 @@ index 384435d..0edf383 100644
 @@ -35,10 +35,10 @@ struct MySolver {
          delete solver;
      }
- 
+
 -    MySolver() : nomodel(true), solving_count(0)
 +    MySolver(crossy_data data) : nomodel(true), solving_count(0)
      {
@@ -654,7 +654,7 @@ index 384435d..0edf383 100644
 -        solver = new MsSolver(opt_verbosity > 0, true);
 +        solver = new MsSolver(data, opt_verbosity > 0, true);
          solver->ipamir_used = true;
-         opt_maxsat = true, opt_maxsat_msu = true; 
+         opt_maxsat = true, opt_maxsat_msu = true;
          opt_minimization = 1,  opt_to_bin_search = false;
 @@ -79,10 +79,10 @@ IPAMIR_API const char * ipamir_signature ()
   * Required state: N/A
@@ -675,10 +675,10 @@ index ab2b27f..4e24929 100644
 +++ b/ipamir.h
 @@ -6,6 +6,7 @@
  #define ipamir_h_INCLUDED
- 
+
  #include <stdint.h>
 +#include "crossy.h"
- 
+
  /*
   * In this header, the macro IPAMIR_API is defined as follows:
 @@ -65,7 +66,7 @@ IPAMIR_API const char * ipamir_signature ();
@@ -687,6 +687,6 @@ index ab2b27f..4e24929 100644
   */
 -IPAMIR_API void * ipamir_init ();
 +IPAMIR_API void * ipamir_init (crossy_data data);
- 
+
  /**
   * Release the solver, i.e., all its resources and allocated memory. The solver
