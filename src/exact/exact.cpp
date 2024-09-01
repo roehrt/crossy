@@ -13,9 +13,10 @@ vi exact::solve(const instance &inst) {
                         if (int pw = graph::pathwidth(inst); pw < 40 && (1ll << pw) * inst.n1 <= crint(5e5))
                             if (auto ans = exact::kobayashi_tamaki(inst); !ans.empty())
                                 return ans;
-                    } catch (const std::exception &e) {
-                    }
-                    auto ans = exact::maxsat(inst);
+                    } catch (const std::exception &) {}
+                    auto ans = maxsat(inst);
+                    std::cerr << "Exact: " << crossings::count(inst, ans) - crossings::lower(crossings::matrix(inst)) << "\n";
+                    std::cerr << "Heuristic: " << crossings::count(inst, heuristic::quick(inst)) - crossings::lower(crossings::matrix(inst)) << "\n";
                     if (ans.empty() || crossings::count(inst, ans) > crossings::count(inst, heuristic::quick(inst)))
                         exit(42);
                     return ans;

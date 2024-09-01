@@ -361,8 +361,8 @@ public:
         Chrono chronoLastSolve;
         Chrono chronoLastOptimize;
 
-        // adapt_am1_exact();
-        // adapt_am1_FastHeuristicV7();
+        adapt_am1_exact();
+        adapt_am1_FastHeuristicV7();
 
         if(cost >= solutionCost) {
             return true;
@@ -538,6 +538,7 @@ public:
                         _cardToAdd.push_back( {conflict, minWeight} );
                         MonPrint("cost = ", cost, " + ", minWeight);
                         cost += minWeight;
+                        std::cerr << "o " << cost << " " << solutionCost << std::endl;
                         if(cost == solutionCost) {
                             MonPrint("c UB == LB");
                             return true;
@@ -573,7 +574,7 @@ public:
                                     auto curCost = LO.optimize( curSolution, std::min(0.1 * chronoLastOptimize.tacSec(), 60.0) );
 
                                     if(curCost < solutionCost) {
-                                        std::cout << "o " << curCost << std::endl;
+                                        std::cerr << "o " << cost << " " << curCost << std::endl;
                                         solutionCost = curCost;
                                         solution = curSolution;
 
@@ -1048,6 +1049,7 @@ public:
         }
 
         unsigned int adapt_am1_FastHeuristicV7() {
+            return 0;
             MonPrint("adapt_am1_FastHeuristic : (_weight.size() = ", _poids.size(), " )");
 
             Chrono chrono;

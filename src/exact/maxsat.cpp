@@ -1,13 +1,41 @@
-#include "EvalMaxSAT.h"
 #include "../common/crossings.hpp"
 #include "../common/penalty_graph.hpp"
 #include "../graph/graph.hpp"
+#include "EvalMaxSAT.h"
 #include "exact.hpp"
 
 namespace {
-    using vvb = std::vector<std::vector<bool>>;
+using vvb = std::vector<std::vector<bool>>;
+
+vvb transitive_closure(vvb g) {
+    int n = std::ssize(g);
+    for (int k = 0; k < n; k++)
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+                g[i][j] = g[i][j] || (g[i][k] && g[k][j]);
+    return g;
+}
+vvb matmul(const vvb &a, const vvb &b) {
+    int n = std::ssize(a);
+    vvb c(n, std::vector<bool>(n));
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+            for (int k = 0; k < n; k++)
+                c[i][j] = c[i][j] || (a[i][k] && b[k][j]);
+    return c;
+}
+vvb transitive_reduction(const vvb &g) {
+    auto closure = transitive_closure(g);
+    auto prod = matmul(g, closure);
+    vvb red(g);
+    for (int i = 0; i < std::ssize(g); i++)
+        for (int j = 0; j < std::ssize(g); j++)
+            red[i][j] = g[i][j] && !prod[i][j];
+    return red;
+}
 
 struct OnlineCycleDetection {
+    int n;
     struct ring_buffer {
         unsigned N;
         std::vector<uint16_t> data;
@@ -40,53 +68,26 @@ struct OnlineCycleDetection {
     std::vector<uint32_t> par_time;
     uint32_t mtime = 0;
 
-    static vvb transitive_closure(vvb g) {
-        int n = std::ssize(g);
-        for (int k = 0; k < n; k++)
-            for (int i = 0; i < n; i++)
-                for (int j = 0; j < n; j++)
-                    g[i][j] = g[i][j] || (g[i][k] && g[k][j]);
-        return g;
-    }
-    static vvb matmul(const vvb &a, const vvb &b) {
-        int n = std::ssize(a);
-        vvb c(n, std::vector<bool>(n));
+    OnlineCycleDetection(const vvb &adj, const vvb &fixed)
+        : n(std::ssize(adj)), hq(n * n), g(n), L(n), par(n), par_time(n) {
+        history.reserve(n * n + 100);
+        history_e.reserve(n * n + 100);
+        vvb is_spine(n, std::vector<bool>(n));
         for (int i = 0; i < n; i++)
             for (int j = 0; j < n; j++)
-                for (int k = 0; k < n; k++)
-                    c[i][j] = c[i][j] || (a[i][k] && b[k][j]);
-        return c;
-    }
-    static vvb transitive_reduction(const vvb &g) {
-        auto closure = transitive_closure(g);
-        auto prod = matmul(g, closure);
-        vvb red(g);
-        for (int i = 0; i < std::ssize(g); i++)
-            for (int j = 0; j < std::ssize(g); j++)
-                red[i][j] = g[i][j] && !prod[i][j];
-        return red;
-    }
-
-    explicit OnlineCycleDetection(crossy_data data)
-        : hq(data.n * data.n), g(data.n), L(data.n), par(data.n), par_time(data.n) {
-        history.reserve(data.n * data.n + 100);
-        history_e.reserve(data.n * data.n + 100);
-        std::vector<std::vector<bool>> is_spine(data.n, std::vector<bool>(data.n));
-        for (int i = 0; i < data.n; i++)
-            for (int j = 0; j < data.n; j++)
-                is_spine[i][j] = data.is_fixed[i * data.n + j];
+                is_spine[i][j] = fixed[i][j];
 
         auto red = transitive_reduction(is_spine);
 
-        std::vector gT(data.n, std::vector<int>());
-        for (int i = 0; i < data.n; i++)
-            for (int j = 0; j < data.n; j++)
+        vvi gT(n, std::vector<int>());
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
                 if (red[i][j]) {
                     g[i].emplace_back(j);
                     gT[j].emplace_back(i);
                 }
 
-        std::vector<bool> visited(data.n);
+        std::vector<bool> visited(n);
         std::function<void(int)> dfs = [&](int u) {
             visited[u] = true;
             int depth = 0;
@@ -97,17 +98,14 @@ struct OnlineCycleDetection {
             }
             L[u] = depth;
         };
-        for (int i = 0; i < data.n; i++)
+        for (int i = 0; i < n; i++)
             if (!visited[i])
                 dfs(i);
-
-        commit();
     }
 
     auto naive_bfs(int s, int t) {
-        const int n = std::ssize(g);
         std::vector<bool> vis(n);
-        std::vector<int> path(n, -1);
+        std::vector path(n, -1);
         std::queue<int> q;
         q.push(s);
         vis[s] = true;
@@ -158,6 +156,7 @@ struct OnlineCycleDetection {
     }
 
     std::optional<vvi> add_edge(int a, int b) {
+        auto time = history.size();
         if (prop(a, b)) {
             uint16_t v = a;
             vi cycle{b};
@@ -169,6 +168,9 @@ struct OnlineCycleDetection {
             }
             cycle.emplace_back(b);
             std::ranges::reverse(cycle);
+
+            while (history.size() > time)
+                L[history.back().first] = history.back().second, history.pop_back();
             return vvi{cycle};
         }
         g[a].emplace_back(b);
@@ -178,21 +180,23 @@ struct OnlineCycleDetection {
 
     void rollback(int t) {
         auto [ht, het] = commits[t];
-        commits.resize(t + 1);
-        while (history.size() > ht) L[history.back().first] = history.back().second, history.pop_back();
-        while (history_e.size() > het) g[history_e.back()].pop_back(), history_e.pop_back();
+        commits.resize(t);
+        while (history.size() > ht)
+            L[history.back().first] = history.back().second, history.pop_back();
+        while (history_e.size() > het)
+            g[history_e.back()].pop_back(), history_e.pop_back();
     }
 
     void commit() { commits.emplace_back(history.size(), history_e.size()); }
 };
 
-class ExternalPropagator : public EvalMaxSAT::ExternalPropagator {
+class DAGPropagator : public EvalMaxSAT::ExternalPropagator {
   public:
     OnlineCycleDetection ocd;
     vvi c, var;
     std::vector<std::pair<int, int>> lookup;
 
-    ExternalPropagator(const vvb &adj, const vvb &fixed) : ocd(adj, fixed), var(size(adj), vi(size(adj))) {
+    DAGPropagator(const vvb &adj, const vvb &fixed) : ocd(adj, fixed), var(size(adj), vi(size(adj))) {
         int n = std::ssize(adj);
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
@@ -204,35 +208,38 @@ class ExternalPropagator : public EvalMaxSAT::ExternalPropagator {
         }
     }
 
-    void notify_assignment(const std::vector<int> &assignment) override {
-        if (lit > 0)
-            return;
-        if (!c.empty())
-            return;
-        auto [u, v] = lookup[-lit - 1];
-        if (is_fixed) {
-            auto cycle = ocd.add_edge(u, v);
-            if (cycle)
-                exit(0xBC); // Bad cycle
-        } else {
-            auto cycle = ocd.add_edge(u, v);
-            if (cycle) {
+    void notify_assignment(const vi &lits) override {
+        for (const auto &lit : lits) {
+            if (lit > 0)
+                continue;
+            if (!c.empty()) return;
+            auto [u, v] = lookup[-lit - 1];
+            if (auto cycle = ocd.add_edge(u, v)) {
                 c.reserve(c.size() + cycle->size());
-                std::move(cycle->begin(), cycle->end(), std::back_inserter(c));
+                std::ranges::move(*cycle, std::back_inserter(c));
                 cycle->clear();
+                return;
             }
         }
     }
-    void notify_new_decision_level() override { ocd.commit(); }
-    void notify_backtrack(size_t new_level) override { ocd.rollback(new_level); }
-    bool cb_has_external_clause() override {
-        bool x = !c.empty();
-        return x;
+    void notify_new_decision_level() override {
+        ocd.commit();
+    }
+    void notify_backtrack(size_t new_level) override {
+        ocd.rollback(new_level);
+    }
+    bool cb_has_external_clause(bool & is_forgettable) override {
+        is_forgettable = true;
+        return !c.empty();
     }
     int cb_decide() override { return 0; }
     int cb_propagate() override { return 0; }
     int cb_add_reason_clause_lit(int) override { return 0; }
-    bool cb_check_found_model(const std::vector<int> &) override { return true; }
+
+    bool cb_check_found_model(const std::vector<int> &model) override {
+        return true;
+    }
+
     int cb_add_external_clause_lit() override {
         if (c.empty())
             return 0;
@@ -254,44 +261,58 @@ class ExternalPropagator : public EvalMaxSAT::ExternalPropagator {
 
 vi exact::maxsat(const instance &inst) {
     const cmatrix c = crossings::matrix(inst);
-    auto K = penalty_graph(inst, c, true);
+    cmatrix K = penalty_graph(inst, c, true);
 
     const int n = SZ(K);
 
     std::vector e2i(n, std::vector(n, -1));
-    std::vector adj(n, std::vector<bool>(n));
+    vvb adj(n, std::vector<bool>(n));
+    vvb fixed(n, std::vector<bool>(n));
+
+    std::cerr << "Solving MaxSAT (n=" << n << ")\n";
 
     EvalMaxSAT solver;
-    int32_t variable = 1;
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
+    solver.unactivateMultiSolveStrategy();
+    int vars = 0;
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
             if (0 < K[i][j]) {
                 adj[i][j] = true;
+                fixed[i][j] = K[i][j] >= oo;
                 if (K[i][j] < oo) {
-                    e2i[i][j] = variable;
-                    solver.addClause({-(variable++)}, K[i][j]);
+                    e2i[i][j] = solver.newVar();
+                    ++vars;
+                    assert(e2i[i][j] == vars);
+                    solver.addClause({-e2i[i][j]}, K[i][j]);
                 }
             }
-        }
-    }
+    DAGPropagator propagator(adj, fixed);
+    solver.connect_external_propagator(&propagator);
+    assert(vars == solver.nVars());
+    for (int v = 1; v <= vars; v++)
+        solver.add_observed_var(v);
 
-    vvi cycles = graph::base_cycles(adj, 50000);
-    if (cycles.empty()) cycles = graph::chordless_cycles(adj);
-
+    vvi cycles = graph::base_cycles(adj, 5000);
     for (const auto &cycle : cycles) {
         vi clause;
         for (int i = 0; i < std::ssize(cycle); i++) {
             int u = cycle[i], v = cycle[(i + 1) % std::ssize(cycle)];
-            if (int x = e2i[u][v]; x != -1) clause.push_back(x);
+            if (int x = e2i[u][v]; x != -1)
+                clause.push_back(x);
         }
         solver.addClause(clause);
     }
 
-    if (!solver.solve()) return {};
+    if (!solver.solve())
+        return {};
+    int64_t cost = 0, reduced_cost = 0;
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++)
-            if (adj[i][j] && e2i[i][j] != -1 && solver.getValue(e2i[i][j]))
+            if (adj[i][j] && e2i[i][j] != -1 && solver.getValue(e2i[i][j])) {
                 adj[i][j] = false;
+                cost += c[i][j];
+                reduced_cost += K[i][j];
+            }
 
     auto topo = graph::topological_sort_matrix(adj);
     assert(topo.has_value());

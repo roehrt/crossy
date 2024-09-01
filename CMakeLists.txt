@@ -8,7 +8,7 @@ add_subdirectory(external/EvalMaxSAT)
 add_executable(crossy main.cpp)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -ggdb3 -fsanitize=address,undefined -fno-omit-frame-pointer \
--fno-sanitize-recover=all -fmax-errors=2 -D_GLIBCXX_DEBUG -D_LIBCPP_DEBUG -D_GLIBCXX_ASSERTIONS")
+-fno-sanitize-recover=all -fmax-errors=2") # -D_LIBCPP_DEBUG -D_GLIBCXX_DEBUG -D_GLIBCXX_ASSERTIONS breaks ABI
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g -ggdb3")
 

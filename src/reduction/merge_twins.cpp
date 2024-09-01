@@ -1,4 +1,6 @@
 #include "reduction.hpp"
+
+#include <algorithm>
 #include <map>
 
 vi reduction::merge_twins(const instance &inst, const slvr &solve) {

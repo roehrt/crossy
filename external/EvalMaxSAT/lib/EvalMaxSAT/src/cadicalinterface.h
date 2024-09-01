@@ -7,7 +7,9 @@
 #include <set>
 #include <chrono>
 
+#include "../../../../../../../../../usr/include/complex.h"
 #include "cadical.hpp"
+#include "external.hpp"
 
 namespace {
     struct Timeout : CaDiCaL::Terminator {
@@ -21,13 +23,20 @@ namespace {
 
 class Solver_cadical {
     CaDiCaL::Solver *solver;
+    CaDiCaL::ExternalPropagator * _propagator = nullptr;
     unsigned int nVar=0;
 public:
 
     Solver_cadical() : solver(new CaDiCaL::Solver()) {
         solver->set("ilb", 0);
         solver->set("ilbassumptions", 0);
-        solver->set("vivify", 0);
+        // solver->set("vivify", 0); // TODO
+        solver->set("cover", 1);
+        solver->set("flush", 1);
+        solver->set("restoreflush", 1);
+
+        solver->set("walk", 0);
+        solver->set("stabilize", 0);
     }
 
     ~Solver_cadical() {
@@ -39,8 +48,9 @@ public:
     }
 
     std::vector<bool> getSolution() {
-        std::vector<bool> res(nVar+1);
-        for(unsigned int i=1; i<=nVar; i++)
+        int vars = solver->vars();
+        std::vector<bool> res(vars+1);
+        for(int i=1; i<=vars; i++)
             res[i] = getValue(i);
         return res;
     }
@@ -68,11 +78,13 @@ public:
         solver->simplify();
     }
 
-    void connect_external_propagator(CaDiCaL::ExternalPropagator *propagator) const {
+    void connect_external_propagator(CaDiCaL::ExternalPropagator *propagator) {
+        _propagator = propagator;
         solver->connect_external_propagator(propagator);
     }
 
-    void disconnect_external_propagator() const {
+    void disconnect_external_propagator() {
+        _propagator = nullptr;
         solver->disconnect_external_propagator();
     }
 
