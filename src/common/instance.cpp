@@ -1,5 +1,7 @@
 #include "instance.hpp"
 
+#include <algorithm>
+
 instance::instance(int n0, int n1) : n0(n0), n1(n1), neighbors(n1), back_neighbors(n0) {}
 
 std::istream &operator>>(std::istream &is, instance &inst) {

@@ -1,6 +1,4 @@
 .idea/
 **/venv/
 cmake-build-*/
-external/*
 build*/
-!external/.gitkeep

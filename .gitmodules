@@ -1,0 +1,4 @@
+[submodule "external/EvalMaxSAT/lib/cadical"]
+	path = external/EvalMaxSAT/lib/cadical
+	url = https://github.com/arminbiere/cadical.git
+	branch = ipasirup-refinements
