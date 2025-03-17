@@ -994,6 +994,7 @@ public:
         }
 
         void reduceCliqueV2(std::list<int> & clique) {
+            return;
             if(_mapWeight2Assum.size() > 1) {
                 clique.sort([&](int litA, int litB){
                     assert( _poids[ -litA ] > 0 );
@@ -1015,6 +1016,7 @@ public:
         }
 
         unsigned int adapt_am1_VeryFastHeuristic() {
+            return 0;
             std::vector<int> prop;
             unsigned int nbCliqueFound=0;
 

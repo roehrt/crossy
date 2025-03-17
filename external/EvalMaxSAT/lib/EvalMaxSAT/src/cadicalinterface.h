@@ -31,12 +31,6 @@ public:
         solver->set("ilb", 0);
         solver->set("ilbassumptions", 0);
         // solver->set("vivify", 0); // TODO
-        solver->set("cover", 1);
-        solver->set("flush", 1);
-        solver->set("restoreflush", 1);
-
-        solver->set("walk", 0);
-        solver->set("stabilize", 0);
     }
 
     ~Solver_cadical() {

@@ -272,7 +272,7 @@ vi exact::maxsat(const instance &inst) {
     std::cerr << "Solving MaxSAT (n=" << n << ")\n";
 
     EvalMaxSAT solver;
-    solver.unactivateMultiSolveStrategy();
+    solver.setTargetComputationTime(1800);
     int vars = 0;
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++)
