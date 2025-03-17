@@ -269,8 +269,6 @@ vi exact::maxsat(const instance &inst) {
     vvb adj(n, std::vector<bool>(n));
     vvb fixed(n, std::vector<bool>(n));
 
-    std::cerr << "Solving MaxSAT (n=" << n << ")\n";
-
     EvalMaxSAT solver;
     solver.setTargetComputationTime(1800);
     int vars = 0;
